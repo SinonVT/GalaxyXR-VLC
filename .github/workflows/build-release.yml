@@ -109,18 +109,34 @@ jobs:
 
           echo "ROOT=$ROOT" >> "$GITHUB_ENV"
 
-      - name: Prepare VLC build directories
+      - name: Prepare LibVLCJNI
         shell: bash
         run: |
           set -e
 
-          echo "Preparing LibVLC project directory..."
+          echo "Preparing LibVLCJNI..."
 
-          mkdir -p "$ROOT/libvlcjni/libvlc"
+          cd "$ROOT"
 
-          echo "Created:"
-          ls -ld "$ROOT/libvlcjni"
-          ls -ld "$ROOT/libvlcjni/libvlc"
+          rm -rf libvlcjni
+
+          git clone \
+            --no-single-branch \
+            https://code.videolan.org/videolan/libvlcjni.git \
+            libvlcjni
+
+          cd libvlcjni
+
+          git checkout 0b8dc65efb203c86a0476bc337ddd99ecf1c0ef6
+
+          echo "LibVLCJNI revision:"
+          git rev-parse HEAD
+
+          echo "LibVLCJNI contents:"
+          ls -la
+
+          echo "LibVLC Gradle project:"
+          ls -la libvlc
 
       - name: Create local.properties
         shell: bash
