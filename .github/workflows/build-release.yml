@@ -7,6 +7,9 @@ on:
       - main
       - master
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-22.04
@@ -190,10 +193,132 @@ jobs:
             exit 1
           fi
 
-      - name: Upload APK
+      # assembleRelease produces UNSIGNED APKs, and Android refuses to
+      # install those ("package appears to be invalid"). The steps below
+      # sign them with YOUR permanent key, which is stored in GitHub
+      # secrets (never in this file), so every build carries the same
+      # signature and people can update from one build to the next.
+      - name: Load signing key from secrets
+        shell: bash
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: vlc
+        run: |
+          set -e
+
+          if [ -z "$KEYSTORE_BASE64" ] || [ -z "$KEYSTORE_PASSWORD" ]; then
+            echo "ERROR: signing secrets are missing."
+            echo "Add KEYSTORE_BASE64 and KEYSTORE_PASSWORD under"
+            echo "Settings > Secrets and variables > Actions > New repository secret."
+            exit 1
+          fi
+
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.keystore"
+
+          # Fails here, clearly, if the key or password is wrong
+          if ! keytool -list \
+            -keystore "$RUNNER_TEMP/release.keystore" \
+            -storepass:env KEYSTORE_PASSWORD \
+            -alias "$KEY_ALIAS" > /dev/null 2>&1; then
+            echo "ERROR: could not open the signing key."
+            echo "Check that KEYSTORE_BASE64 and KEYSTORE_PASSWORD were pasted"
+            echo "exactly, with no extra spaces or line breaks."
+            exit 1
+          fi
+
+          echo "Signing key loaded."
+
+      - name: Sign release APKs
+        shell: bash
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: vlc
+        run: |
+          set -e
+
+          APKSIGNER="$ANDROID_HOME/build-tools/36.0.0/apksigner"
+          ZIPALIGN="$ANDROID_HOME/build-tools/36.0.0/zipalign"
+          OUTDIR="$GITHUB_WORKSPACE/signed-apks"
+          TMPDIR_ALIGN="$RUNNER_TEMP/aligned"
+
+          rm -rf "$OUTDIR" "$TMPDIR_ALIGN"
+          mkdir -p "$OUTDIR" "$TMPDIR_ALIGN"
+
+          FOUND=0
+
+          while IFS= read -r -d '' APK; do
+            FOUND=$((FOUND + 1))
+            NAME=$(basename "$APK" .apk)
+            SRC="$APK"
+
+            echo "=== Signing: $APK"
+
+            # Signing must happen on an aligned file
+            if ! "$ZIPALIGN" -c 4 "$SRC"; then
+              echo "Aligning $NAME first"
+              "$ZIPALIGN" -p -f 4 "$SRC" "$TMPDIR_ALIGN/$NAME.apk"
+              SRC="$TMPDIR_ALIGN/$NAME.apk"
+            fi
+
+            "$APKSIGNER" sign \
+              --ks "$RUNNER_TEMP/release.keystore" \
+              --ks-key-alias "$KEY_ALIAS" \
+              --ks-pass env:KEYSTORE_PASSWORD \
+              --key-pass env:KEYSTORE_PASSWORD \
+              --v4-signing-enabled false \
+              --out "$OUTDIR/$NAME.apk" \
+              "$SRC"
+
+            "$APKSIGNER" verify --verbose --print-certs "$OUTDIR/$NAME.apk"
+          done < <(find "$ROOT" \
+            -type f \
+            -path "*/build/outputs/apk/*" \
+            -name "*.apk" \
+            -print0)
+
+          if [ "$FOUND" -eq 0 ]; then
+            echo "ERROR: no APKs found to sign"
+            exit 1
+          fi
+
+          echo "Signed APKs:"
+          ls -lh "$OUTDIR"
+
+      # Private copy for testing (needs a GitHub login to download, expires)
+      - name: Upload signed APK
         uses: actions/upload-artifact@v4
         with:
-          name: VLC-Android-release
-          path: "vlc-src/**/build/outputs/apk/**/*.apk"
+          name: VLC-Android-release-signed
+          path: "signed-apks/*.apk"
           if-no-files-found: error
           retention-days: 14
+
+      # Public download page for everyone else. Only runs when you start the
+      # workflow by hand (Actions tab > Run workflow), so ordinary pushes do
+      # not spam your Releases page.
+      - name: Publish GitHub Release
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: build-${{ github.run_number }}
+        run: |
+          set -e
+
+          cat > "$RUNNER_TEMP/notes.md" <<EOF
+          Unofficial build of VLC for Android with an on-screen back button
+          added to the video player.
+
+          Which file do I download? Almost every phone from the last several
+          years needs the arm64-v8a file. The others are for older 32-bit
+          phones (armeabi-v7a) and for emulators (x86, x86_64).
+
+          To install, open the downloaded APK and allow installs from this
+          source if Android asks. Source code: https://github.com/${GITHUB_REPOSITORY}
+          EOF
+
+          gh release create "$TAG" signed-apks/*.apk \
+            --target "$GITHUB_SHA" \
+            --title "VLC Android build ${GITHUB_RUN_NUMBER}" \
+            --notes-file "$RUNNER_TEMP/notes.md"
