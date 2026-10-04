@@ -17,11 +17,6 @@ Download the **ARM64** APK:
 
 **[VLC-Android-3.7.2-Beta-3-arm64-v8a.apk](https://github.com/SinonVT/GalaxyXR-VLC/releases/latest/download/VLC-Android-3.7.2-Beta-3-arm64-v8a.apk)**
 
-**SHA-256:**
-
-```text
-67bdf02d04b3e70176a1cf95cd052ddd06cd62fe080902e6df3eb5323df5b99a
-```
 
 > **Note:** Galaxy XR uses a 64-bit ARM architecture, so the `arm64-v8a` APK is the recommended build.
 
