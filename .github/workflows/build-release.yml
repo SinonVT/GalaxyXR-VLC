@@ -306,16 +306,17 @@ jobs:
         run: |
           set -e
 
-          cat > "$RUNNER_TEMP/notes.md" <<EOF
-          Unofficial build of VLC for Android with an on-screen back button
-          added to the video player.
+          cat > "$RUNNER_TEMP/notes.md" <<'EOF'
+          Unofficial build of VLC for Android with an on-screen back button added to the video player.
 
-          Which file do I download? Almost every phone from the last several
-          years needs the arm64-v8a file. The others are for older 32-bit
-          phones (armeabi-v7a) and for emulators (x86, x86_64).
+          The release also contains builds for other Android architectures:
 
-          To install, open the downloaded APK and allow installs from this
-          source if Android asks. Source code: https://github.com/${GITHUB_REPOSITORY}
+          * `arm64-v8a` — **Galaxy XR / 64-bit ARM**
+          * `armeabi-v7a` — 32-bit ARM
+          * `x86` — 32-bit x86
+          * `x86_64` — 64-bit x86
+
+          For Galaxy XR, **use `arm64-v8a`**.
           EOF
 
           gh release create "$TAG" signed-apks/*.apk \
