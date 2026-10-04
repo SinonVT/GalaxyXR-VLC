@@ -1,1 +1,183 @@
+name: Build VLC Android Debug APK
 
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+
+    env:
+      ANDROID_HOME: /usr/local/lib/android/sdk
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Find Android SDK
+        shell: bash
+        run: |
+          set -e
+
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+
+          if [ ! -x "$SDKMANAGER" ]; then
+            echo "sdkmanager not found"
+            find "$ANDROID_HOME/cmdline-tools" \
+              -type f \
+              -name sdkmanager \
+              -print
+            exit 1
+          fi
+
+          echo "SDKMANAGER=$SDKMANAGER" >> "$GITHUB_ENV"
+
+          "$SDKMANAGER" --version
+
+      - name: Accept Android licenses
+        shell: bash
+        run: |
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+
+      - name: Install Android SDK
+        shell: bash
+        run: |
+          "$SDKMANAGER" \
+            "platform-tools" \
+            "platforms;android-36" \
+            "build-tools;36.0.0"
+
+      - name: Check source ZIP
+        shell: bash
+        run: |
+          set -e
+
+          if [ ! -f vlc-android-patched.zip ]; then
+            echo "ERROR: vlc-android-patched.zip not found"
+            ls -lah
+            exit 1
+          fi
+
+          ls -lh vlc-android-patched.zip
+
+      - name: Extract source
+        shell: bash
+        run: |
+          set -e
+
+          rm -rf vlc-src
+          mkdir -p vlc-src
+
+          unzip -q vlc-android-patched.zip -d vlc-src
+
+      - name: Find VLC project root
+        shell: bash
+        run: |
+          set -e
+
+          SETTINGS=$(find "$GITHUB_WORKSPACE/vlc-src" \
+            -type f \
+            -name settings.gradle \
+            -print \
+            -quit)
+
+          if [ -z "$SETTINGS" ]; then
+            echo "ERROR: settings.gradle not found"
+            find "$GITHUB_WORKSPACE/vlc-src" \
+              -maxdepth 4 \
+              -type f \
+              | sort
+            exit 1
+          fi
+
+          ROOT=$(dirname "$SETTINGS")
+
+          echo "VLC project root:"
+          echo "$ROOT"
+
+          echo "ROOT=$ROOT" >> "$GITHUB_ENV"
+
+      - name: Prepare VLC build directories
+        shell: bash
+        run: |
+          set -e
+
+          echo "Preparing LibVLC project directory..."
+
+          mkdir -p "$ROOT/libvlcjni/libvlc"
+
+          echo "Created:"
+          ls -ld "$ROOT/libvlcjni"
+          ls -ld "$ROOT/libvlcjni/libvlc"
+
+      - name: Create local.properties
+        shell: bash
+        run: |
+          set -e
+
+          echo "sdk.dir=$ANDROID_HOME" > "$ROOT/local.properties"
+
+          cat "$ROOT/local.properties"
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "9.3.1"
+
+      - name: Build Debug APK
+        shell: bash
+        run: |
+          set -e
+
+          cd "$ROOT"
+
+          echo "Building from:"
+          pwd
+
+          gradle \
+            --no-daemon \
+            --stacktrace \
+            --console=plain \
+            assembleDebug
+
+      - name: Find APK
+        shell: bash
+        run: |
+          set -e
+
+          echo "Searching for APK..."
+
+          find "$ROOT" \
+            -type f \
+            -name "*.apk" \
+            -print
+
+          COUNT=$(find "$ROOT" \
+            -type f \
+            -name "*.apk" \
+            | wc -l)
+
+          if [ "$COUNT" -eq 0 ]; then
+            echo "ERROR: No APK was produced"
+            exit 1
+          fi
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: VLC-Android-debug
+          path: "vlc-src/**/build/outputs/apk/**/*.apk"
+          if-no-files-found: error
+          retention-days: 14
