@@ -1,6 +1,6 @@
 # GalaxyXR-VLC
 
-A modified version of [VLC for Android](https://github.com/videolan/vlc-android) with a **Back button for hand tracking**, designed for the **Samsung Galaxy XR**.
+A modified version of **VLC for Android** with a **Back button for hand tracking**, designed for the **Samsung Galaxy XR**.
 
 ## Features
 
@@ -17,7 +17,7 @@ Download the **ARM64** APK:
 
 **[VLC-Android-3.7.2-Beta-3-arm64-v8a.apk](https://github.com/SinonVT/GalaxyXR-VLC/releases/download/Alpha/VLC-Android-3.7.2-Beta-3-arm64-v8a.apk)**
 
-SHA-256:
+**SHA-256:**
 
 ```text
 67bdf02d04b3e70176a1cf95cd052ddd06cd62fe080902e6df3eb5323df5b99a
@@ -44,14 +44,26 @@ The release also contains builds for other Android architectures:
 
 For Galaxy XR, **use `arm64-v8a`**.
 
+## License
+
+VLC for Android is licensed under **GPLv2 or later**. Android libraries make this, de facto, a **GPLv3 application**.
+
+The VLC engine (**LibVLC**) for Android is licensed under **LGPLv2**.
+
+The original VLC for Android source code and license information are available from VideoLAN:
+
+**https://code.videolan.org/videolan/vlc-android**
+
+This project is a modified version of VLC for Android and retains the applicable licenses and notices from the original project.
+
 ## Source
 
-This project is based on **VLC for Android** by VideoLAN.
+Original project by **VideoLAN**:
 
-Original project:
+**https://code.videolan.org/videolan/vlc-android**
 
-https://github.com/videolan/vlc-android
+This repository contains modifications made specifically for the Samsung Galaxy XR.
 
 ## Disclaimer
 
-This is an unofficial modified build of VLC for Android and is not affiliated with or endorsed by VideoLAN or Samsung.
+**GalaxyXR-VLC is an unofficial modified build.** It is not affiliated with, endorsed by, or sponsored by VideoLAN or Samsung.
