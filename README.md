@@ -15,7 +15,7 @@ A modified version of **VLC for Android** with a **Back button for hand tracking
 
 Download the **ARM64** APK:
 
-**[VLC-Android-3.7.2-Beta-3-arm64-v8a.apk](https://github.com/SinonVT/GalaxyXR-VLC/releases/download/Alpha/VLC-Android-3.7.2-Beta-3-arm64-v8a.apk)**
+**[VLC-Android-3.7.2-Beta-3-arm64-v8a.apk](https://github.com/SinonVT/GalaxyXR-VLC/releases/latest/download/VLC-Android-3.7.2-Beta-3-arm64-v8a.apk)**
 
 **SHA-256:**
 
